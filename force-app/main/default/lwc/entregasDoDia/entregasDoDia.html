@@ -1,0 +1,25 @@
+<template>
+    <lightning-card title="Painel de Entregas do Dia" icon-name="custom:custom98">
+        <div slot="actions">
+            <lightning-button label="Atualizar" onclick={atualizarEntregas}></lightning-button>
+        </div>
+
+        <div class="slds-p-around_medium">
+            <template lwc:if={entregas}>
+                <div style="height: 300px;">
+                    <lightning-datatable
+                        key-field="Id"
+                        data={entregas}
+                        columns={columns}
+                        hide-checkbox-column>
+                    </lightning-datatable>
+                </div>
+            </template>
+            <template lwc:else>
+                <span class="slds-text-align_center">
+                    Nenhuma entrega registrada para hoje.
+              </span>
+            </template>
+        </div>
+    </lightning-card>
+</template>

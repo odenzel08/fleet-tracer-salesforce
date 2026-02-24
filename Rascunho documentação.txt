@@ -1,0 +1,99 @@
+Doc - método "calcularComissao" - Classe Service
+
+Como parâmetro do método, eu recebo uma lista de entregas que vem da trigger.
+Crio um Map<Id, Double> para controlar as comissões de cada motorista.
+Itero a lista que recebi como parametro, crio uma variavel onde armazeno valor da comissão daquela entrega, faço um if else para verificar se o motorista daquela entrega já possui comissão, basicamente eu vou verificar se ele está "cadastrado" naquele Map, se ele tiver eu atualizo o valor da comissão que ele já tem somando com o valor da comissão daquela entrega, se ele não estiver "cadastrado" no map, eu coloco ele lá, passando dois argumentos (id, valor da comissão).
+Crio uma lista após o for para buscar todos motoristas daquele map, para atualizar numa única chamada DML.
+Itero sobre a lista de motorista e atualizo valor da comissão, acessando o map e pegando do motorista (pq automaticamente o map já traz o valor)
+Verifico se a lista está vazia, se não estiver dou um update. 
+
+Doc - EntragasDomain 
+
+After update:
+
+Crio uma lista para armazenar as entregas aptas para calcular comissão.
+Itera sobre os registros recebidos, verifica se o status da entrega está como concluido e se o status da entrega antes de ser atualizada era outro. Sem essa validação a trigger seria acionada a cada modificação. Se passar, adiciona na lista criada acima.
+Verifica se a lista está vazia e chama a classa "calcularComissao" passando como parametro a lista de entregas.
+
+Doc - método "buscarEntregas" - Classe Service
+
+Dentro de um try/catch armazeno dentro de uma lista as entregas do dia e retorno essa lista.
+
+Doc - getEntregas() - Classe controller 
+
+Apenas chama o método buscarEntregas na classe Service, onde está toda lógica de negócio e expõe para o LWC
+
+Doc - ViaCepIntegration
+
+Vou precisar criar uma classe Wrapper para deserializar o JSON. (ViaCepIntegration)
+ViaCepResponse -> Classe auxiliar dentro dessa classe crio os atributos que vou tirar do JSON.
+Dentro da classe Wrapper crio um método que retorna a classe auxiliar.
+Valido, se a resposta da API for igual a 200 (Sucesso), crio uma variavel da classe auxiliar, e deserializo o JSON de acordo com os atributos que criei na classe auxiliar. Dou um casting para que o JSON deserializado retorne um objeto da classe auxiliar.
+Se der erro, lanço um AuraHandleException retornando o status do erro.
+
+Doc - buscarEntregas() - Classe Service.
+
+Esse método retorna a classe auxiliar ViaCepResponse.
+Recebo o Cep como parametro e formato por regex.
+Crio uma variavel da classe auxiliar para armazenar o resultado da busca do cep. 
+Se o resultado for erro, lança um handleException. Se não retorna o resultado.
+
+Doc - preencerCep() - Classe controller 
+
+Apenas chama o buscarEntregas() passando o cep e retorna o resultado.
+
+Doc - salvarEntrega() - Classe Service
+
+Recebe como parametro um objeto Entrega__c
+Dentro do try, insiro o objeto e o retorno.
+Se der erro cai no catch e lança uma exception
+
+Doc - salvar() - classe Controller
+
+método anotado com @auraEnabled, sem cacheable, pq faz uma operação DML.
+Retorna a classe salvarEntrega()
+
+================================
+
+registroEntrega.js
+
+Doc - limparForm() 
+
+Dentro de uma const, busca e armazena todos os campos 'lightning-input-field'
+Com um if verifico se esses campos existe/são true e faço um forEach passando por cada campo e limpando/resetando o valor
+
+Doc - handlePreencheCep()
+
+Como parametro recebe um event. Crio um const para armazenar o cep, dou um event.target.value, que vai buscar o valor do input acionador
+daquela função e armazeno na const.
+Chamo método preencherCep() e passo como parametro o cep resgatado. Como é uma promise no .then eu pego o result que é o objeto retornado pelo classe auxiliar ViaCepResponse.
+Atráves do querySelector eu busco o valor dos campos rua, cidade, bairro e estado pelo seus 'data-id' do HTML e altero o valor para o valor do result.
+No .catch lanço um console.error() passando o objeto error.
+
+Doc - salvarEntrega()
+
+Como parametro recebe um event, atráves desse event, lanço um event.preventDefault(), para impedir a ação padrão daquela função que por ser proveniente de um lwc-record-edit-form, o salvamento é automático, eu travo isso lançando o prevent.
+Dentro de uma const, recupero o valor de todos os campos para criar um objeto Entrega__c e passar como parametro do método da classe Controller.
+Como os campos rua, estado, cidade e bairro foram preenchidos por uma chamada API, o form pode não ter reconhecido que esses campos foram prenchidos, então preencho manualmente.
+Os campos Cep, Rua, Estado, Cidade e Bairro preencho recuperando o valor pelo querySelector() pegando pelo data-id que está no HTML. 
+Chamo o método salvar(), passo o objeto Entrega__c. No .then disparo um toast de sucesso, passando o Id da nova entrega na mensagem. No .catch disparo um erro um toast de erro, passando a mensagem de erro na mensagem do toast.
+
+==================================
+
+entregaDoDia.js
+
+Doc da classe
+
+Crio os campos que vou passar para lwc-datatable e armazeno numa const, no objeto COLUMNS.
+Passo o valor COLUMNS para o objeto columns que vou passar para o datatable, crio um objeto entregas vazio, e um objeto wiredEntregasResult que será usado para atualizar novas entregas.
+Uso a anotação @wire para chamar o método getEntregas(). Chamo uma função que recebe como parametro o resultado do getEntregas().
+Como no SELECT vamos retornar o nome do motorista. O JS recebe esses campos como um objeto, no caso do motorista ficaria um objt dentro de outro e ele não consegue adentrar, no caso teriamos que "achatar" esse dado.
+crio uma const passando dois objetos, data e error
+Se data for true, pego o objeto entregas e passo o data usando chamando o .map que vai percorrer cada item daquele objeto e retorno aquele objeto usando o Spread (...item) que diz ao JS pega todos os campos que exites na entrega e colocar no naquele item.
+Crio um nova propriedade chamada NomeMotorista, valido atráves de uma consição ternaria se o campo Motorista__r não é nulo, se não for pegue o Name, se for nulo escreva 'Não atribuido' e no final pego o objeto error e atribuo como undefined.
+Se error for true, pego o objeto entregas e atribuo como undefined e lanço um console.error().
+
+Doc - atualizarEntregas()
+
+Uma função que atualiza as entregas, dando um refreshApex() no wiredEntregasResult que tem os dados recebidos do método getEntregas().
+*Essa função é anotado com @api oq a torna publica para ser usada em outras classes.
